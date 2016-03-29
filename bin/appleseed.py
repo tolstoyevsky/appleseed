@@ -72,7 +72,10 @@ def main():
 
     n = 0
     packages_list = []
-    with open(packages_file) as f:
+    # If the encoding parameter isn't specified and the program is run in a
+    # docker container, the interpreter will throw the UnicodeDecodeError
+    # exception, executing the next line.
+    with open(packages_file, encoding='utf-8') as f:
         for package in deb822.Packages.iter_paragraphs(f):
             packages_list.append({
                 'package': package['package'],
