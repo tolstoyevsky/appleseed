@@ -51,12 +51,12 @@ def main():
                                                    'Packages.xz'.
                                    format(options.suite, options.arch))
 
-    LOGGER.info('Downloading {}'.format(address))
+    LOGGER.info('Downloading {}...'.format(address))
     response = urllib.request.urlopen(address)
     with open(packages_xz_file, 'b+w') as f:
         f.write(response.read())
 
-    LOGGER.info('Decompressing Packages.xz')
+    LOGGER.info('Decompressing Packages.xz...')
     with lzma.open(packages_xz_file) as f:
         packages_content = f.read()
 
@@ -90,6 +90,8 @@ def main():
             stdout.flush()
 
     stdout.write('\n')
+
+    LOGGER.info('{} packages have been processed'.format(n))
 
     # From then on we don't need the temporary directory.
     shutil.rmtree(temp_dir)
