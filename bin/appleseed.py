@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import shutil
 import logging
 import lzma
@@ -71,7 +72,6 @@ def main():
 
     n = 0
     packages_list = []
-
     with open(packages_file) as f:
         for package in deb822.Packages.iter_paragraphs(f):
             packages_list.append({
