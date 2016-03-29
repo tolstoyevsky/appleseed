@@ -1,3 +1,4 @@
+chardet
 pymongo
 python-debian
 tornado
