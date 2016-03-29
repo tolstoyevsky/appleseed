@@ -1,8 +1,8 @@
+import shutil
 import logging
 import lzma
 import os
 import os.path
-import sys
 import urllib.parse
 import urllib.request
 import uuid
@@ -38,25 +38,29 @@ LOGGER = logging.getLogger('tornado.application')
 def main():
     tornado.options.parse_command_line()
 
-    temp_dir = os.path.join(options.temp_dir, uuid.uuid4())
+    # Create a temporary directory where the Packages.xz and Packages files
+    # will be located.
+    temp_dir = os.path.join(options.temp_dir, str(uuid.uuid4()))
+    os.mkdir(temp_dir, mode=0o700)
 
-    packages_path = 'dists/{}/main/binary-{}/Packages.xz'.format(options.suite,
-                                                                 options.arch)
-    address = urllib.parse.urljoin(options.mirror, packages_path)
+    packages_file = os.path.join(temp_dir, 'Packages')
+    packages_xz_file = os.path.join(temp_dir, 'Packages.xz')
+
+    address = urllib.parse.urljoin(options.mirror, 'dists/{}/main/binary-{}/'
+                                                   'Packages.xz'.
+                                   format(options.suite, options.arch))
 
     LOGGER.info('Downloading {}'.format(address))
     response = urllib.request.urlopen(address)
-    with open('Packages.xz', 'b+w') as f:
+    with open(packages_xz_file, 'b+w') as f:
         f.write(response.read())
 
     LOGGER.info('Decompressing Packages.xz')
-    with lzma.open('Packages.xz') as f:
+    with lzma.open(packages_xz_file) as f:
         packages_content = f.read()
 
-    with open('Packages', 'b+w') as f:
+    with open(packages_file, 'b+w') as f:
         f.write(packages_content)
-
-    sys.exit(0)
 
     collection_name = '{}-{}'.format(options.suite, options.arch)
     db_name = 'cusdeb'
@@ -69,7 +73,7 @@ def main():
     packages_list = []
 
     with open(packages_file) as f:
-        for package in deb822.Packages.iter_paragraphs('Packages'):
+        for package in deb822.Packages.iter_paragraphs(f):
             packages_list.append({
                 'package': package['package'],
                 'dependencies': package.get('depends', ''),
@@ -83,6 +87,9 @@ def main():
             stdout.flush()
 
     stdout.write('\n')
+
+    # From then on we don't need the temporary directory.
+    shutil.rmtree(temp_dir)
 
     LOGGER.info('Inserting the packages metadata into the {} '
                 'collection...'.format(collection_name))
