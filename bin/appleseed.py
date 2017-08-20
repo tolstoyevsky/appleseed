@@ -27,7 +27,7 @@ define('mongodb_port',
        default=27017,
        help='')
 define('suite',
-       default='jessie',
+       default='stretch',
        help='')
 define('temp_dir',
        default='/tmp',
