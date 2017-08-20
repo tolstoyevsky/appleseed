@@ -33,6 +33,14 @@ define('temp_dir',
        default='/tmp',
        help='')
 
+BLACKLIST = [
+    # The following packages are very big
+    '0ad', '0ad-data', '0ad-data-common', '0ad-dbg',
+    'flightgear', 'flightgear-data-ai', 'flightgear-data-aircrafts',
+    'flightgear-data-all', 'flightgear-data-base', 'flightgear-data-models',
+    'flightgear-dbgsym', 'flightgear-phi',
+]
+
 LOGGER = logging.getLogger('tornado.application')
 
 
@@ -77,15 +85,16 @@ def main():
     # exception, executing the next line.
     with open(packages_file, encoding='utf-8') as f:
         for package in deb822.Packages.iter_paragraphs(f):
-            packages_list.append({
-                'package': package['package'],
-                'dependencies': package.get('depends', ''),
-                'description': package['description'],
-                'version': package['version'],
-                'size': package['size'],
-                'type': ''
-            })
-            n += 1
+            if package['package'] not in BLACKLIST:
+                packages_list.append({
+                    'package': package['package'],
+                    'dependencies': package.get('depends', ''),
+                    'description': package['description'],
+                    'version': package['version'],
+                    'size': package['size'],
+                    'type': ''
+                })
+                n += 1
             stdout.write('\rPackages processed: {}'.format(n))
             stdout.flush()
 
