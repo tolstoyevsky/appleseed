@@ -17,8 +17,11 @@ from tornado.options import define, options
 define('arch',
        default='armhf',
        help='')
+define('distro',
+       default='raspbian',
+       help='')
 define('mirror',
-       default='http://ftp.debian.org/debian/',
+       default='http://archive.raspbian.org/raspbian/',
        help='')
 define('mongodb_host',
        default='localhost',
@@ -71,7 +74,8 @@ def main():
     with open(packages_file, 'b+w') as f:
         f.write(packages_content)
 
-    collection_name = '{}-{}'.format(options.suite, options.arch)
+    collection_name = '{}-{}-{}'.format(options.distro, options.suite,
+                                        options.arch)
     db_name = 'cusdeb'
 
     client = MongoClient(options.mongodb_host, options.mongodb_port)
