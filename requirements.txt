@@ -1,4 +1,4 @@
 chardet
 pymongo
-python-debian
+python-debian==0.1.28
 tornado
