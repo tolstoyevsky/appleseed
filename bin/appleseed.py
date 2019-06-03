@@ -35,6 +35,9 @@ define('suite',
 define('temp_dir',
        default='/tmp',
        help='')
+define('section',
+       default='',
+       help='')
 
 BLACKLIST = [
     # The following packages are very big
@@ -58,9 +61,9 @@ def main():
     packages_file = os.path.join(temp_dir, 'Packages')
     packages_xz_file = os.path.join(temp_dir, 'Packages.xz')
 
-    address = urllib.parse.urljoin(options.mirror, 'dists/{}/main/binary-{}/'
+    address = urllib.parse.urljoin(options.mirror, 'dists/{}/{}/binary-{}/'
                                                    'Packages.xz'.
-                                   format(options.suite, options.arch))
+                                   format(options.suite, options.section, options.arch))
 
     LOGGER.info('Downloading {}...'.format(address))
     response = urllib.request.urlopen(address)
