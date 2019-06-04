@@ -36,7 +36,7 @@ define('temp_dir',
        default='/tmp',
        help='')
 define('section',
-       default='',
+       default='main',
        help='')
 
 BLACKLIST = [
