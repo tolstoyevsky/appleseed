@@ -13,5 +13,4 @@ setup(name='appleseed',
           'chardet',
           'pymongo',
           'python-debian',
-          'tornado'
       ])
