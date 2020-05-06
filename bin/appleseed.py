@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import shutil
 import logging
 import lzma
@@ -9,35 +10,9 @@ import urllib.request
 import uuid
 from sys import stdout
 
-import tornado
 from debian import deb822
 from pymongo import MongoClient
-from tornado.options import define, options
 
-define('arch',
-       default='armhf',
-       help='')
-define('distro',
-       default='raspbian',
-       help='')
-define('mirror',
-       default='http://archive.raspbian.org/raspbian/',
-       help='')
-define('mongodb_host',
-       default='localhost',
-       help='')
-define('mongodb_port',
-       default=27017,
-       help='')
-define('suite',
-       default='stretch',
-       help='')
-define('temp_dir',
-       default='/tmp',
-       help='')
-define('section',
-       default='main',
-       help='')
 
 BLACKLIST = [
     # The following packages are very big
@@ -47,23 +22,39 @@ BLACKLIST = [
     'flightgear-dbgsym', 'flightgear-phi',
 ]
 
-LOGGER = logging.getLogger('tornado.application')
+LOGGER = logging.getLogger(__name__)
 
 
 def main():
-    tornado.options.parse_command_line()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--arch', default='armhf', help='The architecture of the distribution')
+    parser.add_argument('--distro', default='raspbian',
+                        help='The distribution name (e.g. Debian, Raspbian, etc.)')
+    parser.add_argument('--mirror', default='http://archive.raspbian.org/raspbian/',
+                        help='The address of the repository where the packages of the '
+                             'distribution can be found')
+    parser.add_argument('--mongodb-host', default='127.0.0.1', help='The MongoDB host')
+    parser.add_argument('--mongodb-port', type=int, default=27017,
+                        help='The MongoDB port the server listens on')
+    parser.add_argument('--section', default='main',
+                        help='The section name of the distribution (e.g. main, universe, etc.)')
+    parser.add_argument('--suite', default='buster',
+                        help='The distribution code name of version (e.g. Buster, Focal, etc.)')
+    parser.add_argument('--temp-dir', default='/tmp',
+                        help='A temporary directory where the Packages.xz and Packages files will '
+                             'be located')
 
-    # Create a temporary directory where the Packages.xz and Packages files
-    # will be located.
-    temp_dir = os.path.join(options.temp_dir, str(uuid.uuid4()))
+    args = parser.parse_args()
+
+    temp_dir = os.path.join(args.temp_dir, str(uuid.uuid4()))
     os.mkdir(temp_dir, mode=0o700)
 
     packages_file = os.path.join(temp_dir, 'Packages')
     packages_xz_file = os.path.join(temp_dir, 'Packages.xz')
 
-    address = urllib.parse.urljoin(options.mirror, 'dists/{}/{}/binary-{}/'
+    address = urllib.parse.urljoin(args.mirror, 'dists/{}/{}/binary-{}/'
                                                    'Packages.xz'.
-                                   format(options.suite, options.section, options.arch))
+                                   format(args.suite, args.section, args.arch))
 
     LOGGER.info('Downloading {}...'.format(address))
     response = urllib.request.urlopen(address)
@@ -77,11 +68,11 @@ def main():
     with open(packages_file, 'b+w') as f:
         f.write(packages_content)
 
-    collection_name = '{}-{}-{}'.format(options.distro, options.suite,
-                                        options.arch)
+    collection_name = '{}-{}-{}'.format(args.distro, args.suite,
+                                        args.arch)
     db_name = 'cusdeb'
 
-    client = MongoClient(options.mongodb_host, options.mongodb_port)
+    client = MongoClient(args.mongodb_host, args.mongodb_port)
     db = client[db_name]
     packages_collection = db[collection_name]
 
