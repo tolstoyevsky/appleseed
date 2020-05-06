@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 import argparse
 import shutil
-import logging
+import sys
 import lzma
 import os
 import os.path
 import urllib.parse
 import urllib.request
 import uuid
-from sys import stdout
 
 from debian import deb822
 from pymongo import MongoClient
@@ -21,8 +20,6 @@ BLACKLIST = [
     'flightgear-data-all', 'flightgear-data-base', 'flightgear-data-models',
     'flightgear-dbgsym', 'flightgear-phi',
 ]
-
-LOGGER = logging.getLogger(__name__)
 
 
 def main():
@@ -56,12 +53,12 @@ def main():
                                                    'Packages.xz'.
                                    format(args.suite, args.section, args.arch))
 
-    LOGGER.info('Downloading {}...'.format(address))
+    sys.stderr.write('Downloading {}...\n'.format(address))
     response = urllib.request.urlopen(address)
     with open(packages_xz_file, 'b+w') as f:
         f.write(response.read())
 
-    LOGGER.info('Decompressing Packages.xz...')
+    sys.stderr.write('Decompressing Packages.xz...\n')
     with lzma.open(packages_xz_file) as f:
         packages_content = f.read()
 
@@ -93,20 +90,20 @@ def main():
                     'type': ''
                 })
                 n += 1
-            stdout.write('\rPackages processed: {}'.format(n))
-            stdout.flush()
+            sys.stderr.write('\rPackages processed: {}'.format(n))
+            sys.stderr.flush()
 
-    stdout.write('\n')
+    sys.stderr.write('\n')
 
-    LOGGER.info('{} packages have been processed'.format(n))
+    sys.stderr.write('{} packages have been processed\n'.format(n))
 
     # From then on we don't need the temporary directory.
     shutil.rmtree(temp_dir)
 
-    LOGGER.info('Inserting the packages metadata into the {} '
-                'collection...'.format(collection_name))
+    sys.stderr.write('Inserting the packages metadata into the {} '
+                     'collection...\n'.format(collection_name))
     packages_collection.insert_many(packages_list)
-    LOGGER.info('Creating indices...')
+    sys.stderr.write('Creating indices...\n')
     packages_collection.ensure_index(
         [('package', 'text')], name='search_index', weights={'package': 100}
     )
