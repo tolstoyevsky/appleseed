@@ -9,8 +9,9 @@ import urllib.parse
 import urllib.request
 import uuid
 
-from debian import deb822
 from pymongo import MongoClient
+
+from appleseed import IndexFile, DEBIAN_BASED
 
 
 BLACKLIST = [
@@ -78,15 +79,16 @@ def main():
     # If the encoding parameter isn't specified and the program is running in a
     # docker container, the interpreter will throw the UnicodeDecodeError
     # exception, executing the next line.
-    with open(packages_file, encoding='utf-8') as f:
-        for package in deb822.Packages.iter_paragraphs(f):
-            if package['package'] not in BLACKLIST:
+    with open(packages_file, encoding='utf-8') as infile:
+        index_file = IndexFile(infile, DEBIAN_BASED)
+        for paragraph in index_file.iter_paragraphs:
+            if paragraph['package'] not in BLACKLIST:
                 packages_list.append({
-                    'package': package['package'],
-                    'dependencies': package.get('depends', ''),
-                    'description': package['description'],
-                    'version': package['version'],
-                    'size': package['size'],
+                    'package': paragraph['package'],
+                    'dependencies': paragraph.get('depends', ''),
+                    'description': paragraph['description'],
+                    'version': paragraph['version'],
+                    'size': paragraph['size'],
                     'type': ''
                 })
                 n += 1

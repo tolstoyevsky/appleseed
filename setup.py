@@ -12,5 +12,4 @@ setup(name='appleseed',
       install_requires=[
           'chardet',
           'pymongo',
-          'python-debian',
       ])
