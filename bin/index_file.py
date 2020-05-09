@@ -1,23 +1,14 @@
 #!/usr/bin/env python3
 import argparse
-import gzip
-import shutil
 import sys
-import lzma
 import os
 import os.path
-import urllib.parse
-import urllib.request
-import uuid
 from urllib.error import HTTPError
 
 from pymongo import MongoClient
 
-from appleseed import IndexFile, DEBIAN_BASED
+from appleseed import ALLOWED_DISTROS, DebianIndexFile
 
-ALLOWED_DISTROS = ('debian', 'devuan', 'raspbian', 'kali', 'ubuntu', )
-
-PACKAGES_EXTENSIONS = {'.xz': lzma.open, '.gz': gzip.open, }
 
 BLACKLIST = [
     # The following packages are very big
@@ -52,65 +43,23 @@ def main():
 
     args.mirror = os.path.join(args.mirror, '')  # add trailing slash
 
-    if args.distro in ALLOWED_DISTROS:
-        if args.distro == 'kali':
-            args.suite = 'kali-rolling'
-            sys.stderr.write(f'--suite is overridden. Now it is {args.suite}\n')
+    with DebianIndexFile(args.distro, args.suite, args.section, args.arch, args.mirror,
+                         args.temp_dir) as index_file:
+        for url in index_file.get_url():
+            sys.stderr.write(f'Downloading {url}...\n')
 
-        address = urllib.parse.urljoin(
-            args.mirror,
-            f'dists/{args.suite}/{args.section}/binary-{args.arch}/Packages'
-        )
-    else:
-        sys.stderr.write('Unknown distribution name\n')
-        sys.exit(1)
+            try:
+                index_file.download()
+                break
+            except HTTPError as exc:
+                sys.stderr.write(f'Could not download an index file: {exc}\n')
+                continue
+        else:
+            sys.exit(1)
 
-    temp_dir = os.path.join(args.temp_dir, str(uuid.uuid4()))
-    os.mkdir(temp_dir, mode=0o700)
-
-    packages_file = os.path.join(temp_dir, 'Packages')
-
-    for ext in list(PACKAGES_EXTENSIONS.keys()) + ['']:
-        sys.stderr.write('Downloading {}...\n'.format(address + ext))
-        try:
-            response = urllib.request.urlopen(address + ext)
-            break
-        except HTTPError as exc:
-            sys.stderr.write(f'Could not download an index file: {exc}\n')
-            continue
-    else:
-        sys.exit(1)
-
-    packages_file_ext = packages_file + ext
-    with open(packages_file_ext, 'b+w') as outfile:
-        outfile.write(response.read())
-
-    if ext:
-        func = PACKAGES_EXTENSIONS[ext]
-
-        sys.stderr.write(f'Decompressing {packages_file_ext}...\n')
-        with func(packages_file_ext) as infile:
-            packages_content = infile.read()
-
-        with open(packages_file, 'b+w') as outfile:
-            outfile.write(packages_content)
-
-    collection_name = '{}-{}-{}'.format(args.distro, args.suite,
-                                        args.arch)
-    db_name = 'cusdeb'
-
-    client = MongoClient(args.mongodb_host, args.mongodb_port)
-    db = client[db_name]
-    packages_collection = db[collection_name]
-
-    n = 0
-    packages_list = []
-    # If the encoding parameter isn't specified and the program is running in a
-    # docker container, the interpreter will throw the UnicodeDecodeError
-    # exception, executing the next line.
-    with open(packages_file, encoding='utf-8') as infile:
-        index_file = IndexFile(infile, DEBIAN_BASED)
-        for paragraph in index_file.iter_paragraphs:
+        n = 0
+        packages_list = []
+        for paragraph in index_file.iter_paragraphs():
             if paragraph['package'] not in BLACKLIST:
                 packages_list.append({
                     'package': paragraph['package'],
@@ -124,10 +73,15 @@ def main():
 
     sys.stderr.write('\n')
 
-    sys.stderr.write('{} packages have been processed\n'.format(n))
+    collection_name = '{}-{}-{}'.format(args.distro, args.suite,
+                                        args.arch)
+    db_name = 'cusdeb'
 
-    # From then on we don't need the temporary directory.
-    shutil.rmtree(temp_dir)
+    client = MongoClient(args.mongodb_host, args.mongodb_port)
+    db = client[db_name]
+    packages_collection = db[collection_name]
+
+    sys.stderr.write('{} packages have been processed\n'.format(n))
 
     sys.stderr.write('Inserting the packages metadata into the {} '
                      'collection...\n'.format(collection_name))
