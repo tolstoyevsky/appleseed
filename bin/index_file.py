@@ -114,11 +114,9 @@ def main():
             if paragraph['package'] not in BLACKLIST:
                 packages_list.append({
                     'package': paragraph['package'],
-                    'dependencies': paragraph.get('depends', ''),
                     'description': paragraph['description'],
                     'version': paragraph['version'],
                     'size': paragraph['size'],
-                    'type': ''
                 })
                 n += 1
             sys.stderr.write('\rPackages processed: {}'.format(n))
