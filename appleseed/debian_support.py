@@ -39,7 +39,7 @@ except ImportError:
     # Lack of typing is not important at runtime
     pass
 
-from debian.deprecation import function_deprecated_by
+from appleseed.deprecation import function_deprecated_by
 
 try:
     import apt_pkg   # type: ignore
