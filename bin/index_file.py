@@ -46,6 +46,8 @@ def main():
 
     args = parser.parse_args()
 
+    args.mirror = os.path.join(args.mirror, '')  # add trailing slash
+
     if args.distro in ALLOWED_DISTROS:
         if args.distro == 'kali':
             args.suite = 'kali-rolling'
