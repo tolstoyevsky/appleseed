@@ -4,6 +4,7 @@ import os
 import os.path
 import re
 import shutil
+import tarfile
 import urllib.parse
 import urllib.request
 import uuid
@@ -12,7 +13,7 @@ from appleseed import apt_pkg
 from appleseed.deb822 import Deb822, Deb822Dict, TagSectionWrapper
 
 
-ALLOWED_DISTROS = ('debian', 'devuan', 'raspbian', 'kali', 'ubuntu', )
+ALLOWED_DISTROS = ('alpine', 'debian', 'devuan', 'raspbian', 'kali', 'ubuntu', )
 
 _MAP = {
     'A': 'Architecture',
@@ -38,7 +39,10 @@ class IndexFile:
         if distro not in ALLOWED_DISTROS:
             raise UnknownDistro
 
-        uri = f'dists/{suite}/{section}/binary-{arch}/Packages'
+        if distro == 'alpine':
+            uri = f'v{suite}/{section}/{arch}/APKINDEX.tar.gz'
+        else:
+            uri = f'dists/{suite}/{section}/binary-{arch}/Packages'
 
         self._index_file_path = None  # will be known later
         self._url = urllib.parse.urljoin(mirror, uri)
@@ -63,6 +67,32 @@ class IndexFile:
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         shutil.rmtree(self._temp_dir)
+
+
+class AlpineIndexFile(IndexFile):
+    def get_url(self):
+        yield self._url
+
+    def iter_paragraphs(self):
+        with tarfile.open(self._index_file_path) as infile:
+            infile.extractall(path=os.path.dirname(self._index_file_path))
+
+        with open(self._index_file_path[:-len('.tat.gz')], encoding='utf-8') as infile:
+            paragraph = Deb822Dict()
+            for line in infile.readlines():
+                if line == '\n':
+                    yield paragraph
+                    paragraph = Deb822Dict()
+                    continue
+
+                _empty, key, val = re.split(r'^(\w):', line, flags=re.IGNORECASE)
+
+                try:
+                    key = _MAP[key]
+                except KeyError:
+                    pass
+
+                paragraph[key] = val.strip()
 
 
 class DebianIndexFile(IndexFile):
