@@ -13,6 +13,7 @@ from pymongo import MongoClient
 
 from appleseed import IndexFile, DEBIAN_BASED
 
+ALLOWED_DISTROS = ('debian', 'devuan', 'raspbian', 'kali', 'ubuntu', )
 
 BLACKLIST = [
     # The following packages are very big
@@ -27,7 +28,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--arch', default='armhf', help='The architecture of the distribution')
     parser.add_argument('--distro', default='raspbian',
-                        help='The distribution name (e.g. Debian, Raspbian, etc.)')
+                        help=f'The distribution name. The option takes the following values: '
+                             f'{", ".join(ALLOWED_DISTROS)}')
     parser.add_argument('--mirror', default='http://archive.raspbian.org/raspbian/',
                         help='The address of the repository where the packages of the '
                              'distribution can be found')
@@ -44,15 +46,24 @@ def main():
 
     args = parser.parse_args()
 
+    if args.distro in ALLOWED_DISTROS:
+        if args.distro == 'kali':
+            args.suite = 'kali-rolling'
+            sys.stderr.write(f'--suite is overridden. Now it is {args.suite}\n')
+
+        address = urllib.parse.urljoin(
+            args.mirror,
+            f'dists/{args.suite}/{args.section}/binary-{args.arch}/Packages.xz'
+        )
+    else:
+        sys.stderr.write('Unknown distribution name\n')
+        sys.exit(1)
+
     temp_dir = os.path.join(args.temp_dir, str(uuid.uuid4()))
     os.mkdir(temp_dir, mode=0o700)
 
     packages_file = os.path.join(temp_dir, 'Packages')
     packages_xz_file = os.path.join(temp_dir, 'Packages.xz')
-
-    address = urllib.parse.urljoin(args.mirror, 'dists/{}/{}/binary-{}/'
-                                                   'Packages.xz'.
-                                   format(args.suite, args.section, args.arch))
 
     sys.stderr.write('Downloading {}...\n'.format(address))
     response = urllib.request.urlopen(address)
