@@ -7,7 +7,7 @@ from urllib.error import HTTPError
 
 from pymongo import MongoClient
 
-from appleseed import ALLOWED_DISTROS, DebianIndexFile
+from appleseed import ALLOWED_DISTROS, AlpineIndexFile, DebianIndexFile
 
 
 BLACKLIST = [
@@ -36,15 +36,15 @@ def main():
     parser.add_argument('--suite', default='buster',
                         help='The distribution code name of version (e.g. Buster, Focal, etc.)')
     parser.add_argument('--temp-dir', default='/tmp',
-                        help='A temporary directory where the Packages.xz and Packages files will '
-                             'be located')
+                        help='A temporary directory where the target index files will be located')
 
     args = parser.parse_args()
 
     args.mirror = os.path.join(args.mirror, '')  # add trailing slash
 
-    with DebianIndexFile(args.distro, args.suite, args.section, args.arch, args.mirror,
-                         args.temp_dir) as index_file:
+    index_file_cls = AlpineIndexFile if args.distro == 'alpine' else DebianIndexFile
+    with index_file_cls(args.distro, args.suite, args.section, args.arch, args.mirror,
+                        args.temp_dir) as index_file:
         for url in index_file.get_url():
             sys.stderr.write(f'Downloading {url}...\n')
 
