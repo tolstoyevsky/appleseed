@@ -279,8 +279,8 @@ except ImportError:
     # Lack of typing is not important at runtime
     pass
 
-from debian.deprecation import function_deprecated_by
-import debian.debian_support
+from appleseed.deprecation import function_deprecated_by
+import appleseed.debian_support
 
 try:
     import apt_pkg    # type: ignore
