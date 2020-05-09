@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import gzip
 import shutil
 import sys
 import lzma
@@ -8,12 +9,15 @@ import os.path
 import urllib.parse
 import urllib.request
 import uuid
+from urllib.error import HTTPError
 
 from pymongo import MongoClient
 
 from appleseed import IndexFile, DEBIAN_BASED
 
 ALLOWED_DISTROS = ('debian', 'devuan', 'raspbian', 'kali', 'ubuntu', )
+
+PACKAGES_EXTENSIONS = {'.xz': lzma.open, '.gz': gzip.open, }
 
 BLACKLIST = [
     # The following packages are very big
@@ -55,7 +59,7 @@ def main():
 
         address = urllib.parse.urljoin(
             args.mirror,
-            f'dists/{args.suite}/{args.section}/binary-{args.arch}/Packages.xz'
+            f'dists/{args.suite}/{args.section}/binary-{args.arch}/Packages'
         )
     else:
         sys.stderr.write('Unknown distribution name\n')
@@ -65,19 +69,31 @@ def main():
     os.mkdir(temp_dir, mode=0o700)
 
     packages_file = os.path.join(temp_dir, 'Packages')
-    packages_xz_file = os.path.join(temp_dir, 'Packages.xz')
 
-    sys.stderr.write('Downloading {}...\n'.format(address))
-    response = urllib.request.urlopen(address)
-    with open(packages_xz_file, 'b+w') as f:
-        f.write(response.read())
+    for ext in list(PACKAGES_EXTENSIONS.keys()) + ['']:
+        sys.stderr.write('Downloading {}...\n'.format(address + ext))
+        try:
+            response = urllib.request.urlopen(address + ext)
+            break
+        except HTTPError as exc:
+            sys.stderr.write(f'Could not download an index file: {exc}\n')
+            continue
+    else:
+        sys.exit(1)
 
-    sys.stderr.write('Decompressing Packages.xz...\n')
-    with lzma.open(packages_xz_file) as f:
-        packages_content = f.read()
+    packages_file_ext = packages_file + ext
+    with open(packages_file_ext, 'b+w') as outfile:
+        outfile.write(response.read())
 
-    with open(packages_file, 'b+w') as f:
-        f.write(packages_content)
+    if ext:
+        func = PACKAGES_EXTENSIONS[ext]
+
+        sys.stderr.write(f'Decompressing {packages_file_ext}...\n')
+        with func(packages_file_ext) as infile:
+            packages_content = infile.read()
+
+        with open(packages_file, 'b+w') as outfile:
+            outfile.write(packages_content)
 
     collection_name = '{}-{}-{}'.format(args.distro, args.suite,
                                         args.arch)
