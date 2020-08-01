@@ -1,5 +1,4 @@
 import gzip
-import lzma
 import os
 import os.path
 import re
@@ -97,7 +96,7 @@ class AlpineIndexFile(IndexFile):
 
 class DebianIndexFile(IndexFile):
     def __init__(self, *args, **kwargs):
-        self._debian_packages_ext = {'.xz': lzma.open, '.gz': gzip.open, }
+        self._debian_packages_ext = {'.gz': gzip.open, }
         self._ext = None  # index file extension (one of _debian_packages_ext)
 
         super().__init__(*args, **kwargs)
