@@ -283,7 +283,7 @@ from appleseed.deprecation import function_deprecated_by
 import appleseed.debian_support
 
 try:
-    import apt_pkg    # type: ignore
+    from appleseed import apt_pkg
     # This module uses apt_pkg only for its TagFile interface.
     apt_pkg.TagFile     # pylint: disable=pointless-statement
     _have_apt_pkg = True
