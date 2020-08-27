@@ -87,7 +87,7 @@ def main():
                      'collection...\n'.format(collection_name))
     packages_collection.insert_many(packages_list)
     sys.stderr.write('Creating indices...\n')
-    packages_collection.ensure_index(
+    packages_collection.create_index(
         [('package', 'text')], name='search_index', weights={'package': 100}
     )
 
