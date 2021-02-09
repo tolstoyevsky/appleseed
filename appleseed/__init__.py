@@ -26,33 +26,52 @@ _MAP = {
 }
 
 
+class MirrorUrlNotSpecified(Exception):
+    pass
+
+
+class SectionNotSpecified(Exception):
+    pass
+
+
 class UnknownDistro(Exception):
     pass
 
 
 class IndexFile:
-    def __init__(self, distro, suite, section, arch, mirror, parent_temp_dir='/tmp'):
+    def __init__(self, distro, suite, arch, location, section=None, parent_temp_dir='/tmp'):
         self._parent_temp_dir = parent_temp_dir
         self._temp_dir = None
 
         if distro not in ALLOWED_DISTROS:
             raise UnknownDistro
 
-        if distro == 'alpine':
-            uri = f'v{suite}/{section}/{arch}/APKINDEX.tar.gz'
+        self._url = None
+        if os.path.exists(location):
+            self._index_file_path = location
         else:
-            uri = f'dists/{suite}/{section}/binary-{arch}/Packages'
+            if not section:
+                raise SectionNotSpecified
 
-        self._index_file_path = None  # will be known later
-        self._url = urllib.parse.urljoin(mirror, uri)
+            if distro == 'alpine':
+                uri = f'v{suite}/{section}/{arch}/APKINDEX.tar.gz'
+            else:
+                uri = f'dists/{suite}/{section}/binary-{arch}/Packages'
+
+            self._index_file_path = None  # will be known later
+            self._url = urllib.parse.urljoin(location, uri)
 
     def get_url(self):
-        raise NotImplemented
+        if not self._url:
+            raise MirrorUrlNotSpecified
 
     def iter_paragraphs(self):
         raise NotImplemented
 
     def download(self):
+        if not self._url:
+            raise MirrorUrlNotSpecified
+
         self._index_file_path = os.path.join(self._temp_dir, os.path.basename(self._url))
         with urllib.request.urlopen(self._url) as response:
             with open(self._index_file_path, 'b+w') as outfile:
@@ -70,13 +89,19 @@ class IndexFile:
 
 class AlpineIndexFile(IndexFile):
     def get_url(self):
+        super().get_url()
+
         yield self._url
 
     def iter_paragraphs(self):
-        with tarfile.open(self._index_file_path) as infile:
-            infile.extractall(path=os.path.dirname(self._index_file_path))
+        index_file_path = self._index_file_path
+        if index_file_path.endswith('.tar.gz'):
+            with tarfile.open(index_file_path) as infile:
+                infile.extractall(path=os.path.dirname(index_file_path))
 
-        with open(self._index_file_path[:-len('.tat.gz')], encoding='utf-8') as infile:
+            index_file_path = index_file_path[:-len('.tat.gz')]
+
+        with open(index_file_path, encoding='utf-8') as infile:
             paragraph = Deb822Dict()
             for line in infile.readlines():
                 if line == '\n':
@@ -102,6 +127,8 @@ class DebianIndexFile(IndexFile):
         super().__init__(*args, **kwargs)
 
     def get_url(self):
+        super().get_url()
+
         url_bck = self._url
         for self._ext in list(self._debian_packages_ext.keys()) + ['']:
             # An empty list means an uncompressed index file.
