@@ -43,7 +43,7 @@ def main():
     args.mirror = os.path.join(args.mirror, '')  # add trailing slash
 
     index_file_cls = AlpineIndexFile if args.distro == 'alpine' else DebianIndexFile
-    with index_file_cls(args.distro, args.suite, args.section, args.arch, args.mirror,
+    with index_file_cls(args.distro, args.suite, args.arch, args.mirror, args.section,
                         args.temp_dir) as index_file:
         for url in index_file.get_url():
             sys.stderr.write(f'Downloading {url}...\n')
