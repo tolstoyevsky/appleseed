@@ -12,7 +12,7 @@ from appleseed import apt_pkg
 from appleseed.deb822 import Deb822, Deb822Dict, TagSectionWrapper
 
 
-ALLOWED_DISTROS = ('alpine', 'debian', 'devuan', 'raspbian', 'kali', 'ubuntu', )
+ALLOWED_DISTROS = ('alpine', 'debian', 'devuan', 'raspberrypios', 'kali', 'ubuntu', )
 
 _MAP = {
     'A': 'Architecture',
